@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Target, Upload, ChevronRight, ChevronDown, Users, Activity, Gauge, Download, Sparkles, Building2, Plus, Trash2, Pencil, Check, X, Eye, ArrowLeft, CalendarDays, RotateCcw, LogOut, LayoutDashboard, FileSpreadsheet, MessageSquare, ClipboardList, BarChart3, ShieldCheck, Wand2, Heart, Star, Inbox, Briefcase, ThumbsUp, ThumbsDown, Minus, Package, Quote, Layers, QrCode, Printer, Settings, Bot, FileText, Send, BarChart2, Clock, Zap, Bell, Flag, GitCompareArrows, Home, UserCheck, XCircle, PhoneCall, RefreshCw } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -1762,11 +1763,16 @@ function Shell({nav,active,setActive,topRight,brandSub,children,accentName}){
   </div>;
 }
 
-function AdminApp({db,update,onLogout,openClient}){
+function AdminApp({db,update,onLogout}){
+  const navigate=useNavigate(); const location=useLocation();
   const [newDetCount,setNewDetCount]=useState(0);
   useRealtimeSurvey(update,()=>setNewDetCount(n=>n+1));
-  const [view,setView]=useState('panel'); const [chgPwd,setChgPwd]=useState(false);
-  const handleSetView=(v)=>{ if(v==='detractores')setNewDetCount(0); setView(v); };
+  const [chgPwd,setChgPwd]=useState(false);
+
+  const seg=location.pathname.split('/')[2]||'panel';
+  const handleSetView=(v)=>{ if(v==='detractores')setNewDetCount(0); navigate('/admin/'+v); };
+  const goClient=(id)=>navigate('/cliente/'+id,{state:{fromAdmin:true}});
+
   const nav=[
     {key:'panel',label:'Panel ejecutivo',icon:Home},
     {key:'clientes',label:'Clientes',icon:Building2},
@@ -1777,21 +1783,28 @@ function AdminApp({db,update,onLogout,openClient}){
     {key:'cross',label:'Cross-sell IA',icon:Sparkles},
   ];
   return <><ChangePasswordModal open={chgPwd} onClose={()=>setChgPwd(false)}/>
-  <Shell nav={nav} active={view} setActive={handleSetView} accentName="ADMINISTRACIÓN" brandSub="PromotIA · Delenio People"
+  <Shell nav={nav} active={seg} setActive={handleSetView} accentName="ADMINISTRACIÓN" brandSub="PromotIA · Delenio People"
     topRight={<><Tag tone="brand"><ShieldCheck size={12} style={{marginRight:4,verticalAlign:'-2px'}}/>Admin</Tag><Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn><Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn></>}>
-    {view==='panel'&&<AdminPanel db={db} newDetCount={newDetCount} goClient={openClient}/>}
-    {view==='clientes'&&<AdminClientes db={db} update={update} goClient={openClient}/>}
-    {view==='detractores'&&<AdminDetractores db={db} update={update}/>}
-    {view==='usuarios'&&<AdminUsuarios db={db} update={update}/>}
-    {view==='uso'&&<AdminUso db={db}/>}
-    {view==='benchmark'&&<AdminBenchmark db={db}/>}
-    {view==='cross'&&<AdminCrossSell db={db}/>}
+    <Routes>
+      <Route index element={<Navigate to="panel" replace/>}/>
+      <Route path="panel" element={<AdminPanel db={db} newDetCount={newDetCount} goClient={goClient}/>}/>
+      <Route path="clientes" element={<AdminClientes db={db} update={update} goClient={goClient}/>}/>
+      <Route path="detractores" element={<AdminDetractores db={db} update={update}/>}/>
+      <Route path="usuarios" element={<AdminUsuarios db={db} update={update}/>}/>
+      <Route path="uso" element={<AdminUso db={db}/>}/>
+      <Route path="benchmark" element={<AdminBenchmark db={db}/>}/>
+      <Route path="cross" element={<AdminCrossSell db={db}/>}/>
+      <Route path="*" element={<Navigate to="panel" replace/>}/>
+    </Routes>
   </Shell></>;
 }
 
-function ClientAppShell({db,update,clientId,onLogout,fromAdmin,backToAdmin}){
-  const [view,setView]=useState('resumen'); const [chgPwd,setChgPwd]=useState(false);
+function ClientAppShell({db,update,onLogout}){
+  const {clientId}=useParams(); const navigate=useNavigate(); const location=useLocation();
+  const [chgPwd,setChgPwd]=useState(false);
+  const fromAdmin=location.state?.fromAdmin||false;
   const c=db.clients.find(x=>x.id===clientId);
+  const seg=location.pathname.split('/')[3]||'resumen';
   const nav=[
     {key:'resumen',label:'NPS del año',icon:LayoutDashboard},
     {key:'historico',label:'Dashboard histórico',icon:BarChart3},
@@ -1803,27 +1816,30 @@ function ClientAppShell({db,update,clientId,onLogout,fromAdmin,backToAdmin}){
     {key:'plan',label:'Plan de acción',icon:ClipboardList},
   ];
   return <><ChangePasswordModal open={chgPwd} onClose={()=>setChgPwd(false)}/>
-  <Shell nav={nav} active={view} setActive={setView} accentName={(c?.name||'CLIENTE').toUpperCase()} brandSub={c?.name}
+  <Shell nav={nav} active={seg} setActive={(v)=>navigate(`/cliente/${clientId}/${v}`,{state:{fromAdmin}})} accentName={(c?.name||'CLIENTE').toUpperCase()} brandSub={c?.name}
     topRight={<>
       <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13,color:C.tx2}}><span style={{display:'grid',placeItems:'center',width:28,height:28,borderRadius:8,background:C.grad,color:'#fff',fontWeight:700,fontFamily:DISP,fontSize:13}}>{c?.name[0]}</span>{c?.name}</span>
       {!fromAdmin&&<Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn>}
-      {fromAdmin? <Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={backToAdmin}>Volver a admin</Btn> : <Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn>}
+      {fromAdmin?<Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={()=>navigate('/admin')}>Volver a admin</Btn>:<Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn>}
     </>}>
-    {view==='resumen'&&<ClientResumen db={db} clientId={clientId}/>}
-    {view==='historico'&&<ClientHistorico db={db} clientId={clientId}/>}
-    {view==='comparativa'&&<ClientComparativa db={db} clientId={clientId}/>}
-    {view==='voces'&&<ClientVoces db={db} clientId={clientId} update={update}/>}
-    {view==='chat'&&<ClientChat db={db} clientId={clientId}/>}
-    {view==='informe'&&<ClientInforme db={db} clientId={clientId}/>}
-    {view==='contexto'&&<ClientContexto db={db} clientId={clientId} update={update}/>}
-    {view==='plan'&&<ClientPlan db={db} clientId={clientId} update={update}/>}
+    <Routes>
+      <Route index element={<Navigate to="resumen" replace/>}/>
+      <Route path="resumen" element={<ClientResumen db={db} clientId={clientId}/>}/>
+      <Route path="historico" element={<ClientHistorico db={db} clientId={clientId}/>}/>
+      <Route path="comparativa" element={<ClientComparativa db={db} clientId={clientId}/>}/>
+      <Route path="voces" element={<ClientVoces db={db} clientId={clientId} update={update}/>}/>
+      <Route path="chat" element={<ClientChat db={db} clientId={clientId}/>}/>
+      <Route path="informe" element={<ClientInforme db={db} clientId={clientId}/>}/>
+      <Route path="contexto" element={<ClientContexto db={db} clientId={clientId} update={update}/>}/>
+      <Route path="plan" element={<ClientPlan db={db} clientId={clientId} update={update}/>}/>
+      <Route path="*" element={<Navigate to="resumen" replace/>}/>
+    </Routes>
   </Shell></>;
 }
 
 /* ============================================================ ROOT ============================================================ */
-export default function PromotIA({ autoAdmin=false, onLogout }){
+export default function PromotIA({ onLogout }){
   const [db,setDb]=useState(null);
-  const [session,setSession]=useState(autoAdmin ? {role:'admin'} : null);
   const [loading,setLoading]=useState(true);
 
   useEffect(()=>{ (async()=>{
@@ -1837,14 +1853,13 @@ export default function PromotIA({ autoAdmin=false, onLogout }){
     (async()=>{ try{ await storage.set(DB_KEY, JSON.stringify(next)); }catch(e){} })();
     return next; }); }
 
-  // Salir: si hay logout externo (Supabase) lo usamos, sino volvemos al login interno
-  const handleLogout = onLogout || (()=>setSession(null));
-
   if(loading||!db) return <div className="promotia"><GlobalStyle/><div style={{minHeight:'100vh',display:'grid',placeItems:'center',background:C.surface2}}><div style={{textAlign:'center'}}><div style={{display:'inline-grid',placeItems:'center',marginBottom:14}}><Mark size={52}/></div><div style={{display:'flex',alignItems:'center',gap:9,color:C.tx2,fontWeight:600}}><Spinner size={16} color={C.primary}/>Cargando PromotIA…</div></div></div></div>;
 
   return <div className="promotia"><GlobalStyle/>
-    {!session && <Login db={db} onAdmin={()=>setSession({role:'admin'})} onClient={(id)=>setSession({role:'client',clientId:id})}/>}
-    {session?.role==='admin' && <AdminApp db={db} update={update} onLogout={handleLogout} openClient={(id)=>setSession({role:'client',clientId:id,fromAdmin:true})}/>}
-    {session?.role==='client' && <ClientAppShell db={db} update={update} clientId={session.clientId} fromAdmin={session.fromAdmin} backToAdmin={()=>setSession({role:'admin'})} onLogout={handleLogout}/>}
+    <Routes>
+      <Route path="/admin/*" element={<AdminApp db={db} update={update} onLogout={onLogout}/>}/>
+      <Route path="/cliente/:clientId/*" element={<ClientAppShell db={db} update={update} onLogout={onLogout}/>}/>
+      <Route path="*" element={<Navigate to="/admin" replace/>}/>
+    </Routes>
   </div>;
 }

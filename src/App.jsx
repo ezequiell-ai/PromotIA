@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import PromotIA from './PromotIA'
 import LoginPage from './pages/Login'
@@ -8,7 +9,7 @@ import BlockedPage from './pages/Blocked'
 import SurveyPage from './pages/Survey'
 import ClientPortal from './pages/ClientPortal'
 
-const C = { primary: '#73017B', magenta: '#E40993', surface: '#F7F2FA' }
+const C = { primary: '#73017B', surface: '#F7F2FA' }
 const DISP = "'Quicksand','Trebuchet MS',sans-serif"
 
 function LoadingScreen() {
@@ -31,17 +32,22 @@ function LoadingScreen() {
   )
 }
 
-// Detectar rutas públicas antes de montar componentes con hooks
-const path = window.location.pathname
-const surveyMatch = path.match(/^\/encuesta\/(.+)/)
-const portalMatch = path.match(/^\/portal\/(.+)/)
+// Wrappers para rutas públicas que necesitan useParams
+function SurveyRoute() {
+  const { clientId } = useParams()
+  return <SurveyPage clientId={clientId} />
+}
+
+function PortalRoute({ onLogout }) {
+  const { clientId } = useParams()
+  return <ClientPortal clientId={clientId} onLogout={onLogout} />
+}
 
 export default function App() {
+  const navigate = useNavigate()
   const [user, setUser] = useState(null)
-  const [clientInfo, setClientInfo] = useState(null) // { clientCode, clientName } para viewers
   const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [page, setPage] = useState('login') // login | register | checkout | blocked | app | portal
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -50,7 +56,7 @@ export default function App() {
     })
     const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) { setUser(session.user); checkSubscription(session.user.id) }
-      else { setUser(null); setSubscriptionStatus(null); setPage('login'); setLoading(false) }
+      else { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
     })
     return () => authListener.unsubscribe()
   }, [])
@@ -63,49 +69,51 @@ export default function App() {
         .eq('id', userId)
         .maybeSingle()
 
-      // Admin Delenio — acceso directo (incluye cuando no hay row en users)
       if (!userRow || userRow?.role === 'admin') {
-        setPage('app'); setLoading(false); return
+        navigate('/admin'); setLoading(false); return
       }
-
-      // Viewer (cliente de Delenio) — va al portal con sus datos
       if (userRow?.role === 'viewer' && userRow?.client_code) {
-        setClientInfo({ clientCode: userRow.client_code, clientName: userRow.email })
-        setPage('portal'); setLoading(false); return
+        navigate('/portal/' + userRow.client_code); setLoading(false); return
       }
-
-      // Viewer sin client_code asignado — igual va al app (admin puede asignarle un cliente)
       if (userRow?.role === 'viewer') {
-        setPage('app'); setLoading(false); return
+        navigate('/admin'); setLoading(false); return
       }
-
       if (!userRow?.company_id) {
-        setSubscriptionStatus('none'); setPage('checkout'); setLoading(false); return
+        navigate('/checkout'); setLoading(false); return
       }
 
       const { data: sub } = await supabase
         .from('subscriptions').select('status').eq('company_id', userRow.company_id).maybeSingle()
       const status = sub?.status || 'none'
       setSubscriptionStatus(status)
-      setPage(!sub || status === 'canceled' || status === 'unpaid' ? 'blocked' : 'app')
+      navigate(!sub || status === 'canceled' || status === 'unpaid' ? '/blocked' : '/admin')
     } catch (e) {
       console.error('checkSubscription error:', e)
-      setPage('app')
+      navigate('/admin')
     }
     setLoading(false)
   }
 
   async function handleLogout() { await supabase.auth.signOut() }
 
-  // Rutas públicas — sin auth (después de todos los hooks)
-  if (surveyMatch) return <SurveyPage clientId={surveyMatch[1]} />
-  if (portalMatch) return <ClientPortal clientId={portalMatch[1]} onLogout={() => window.location.href = '/'} />
-
   if (loading) return <LoadingScreen />
-  if (page === 'login') return <LoginPage onSuccess={() => setLoading(true)} onRegister={() => setPage('register')}/>
-  if (page === 'register') return <RegisterPage onBack={() => setPage('login')} onSuccess={() => setLoading(true)}/>
-  if (page === 'checkout') return <CheckoutPage user={user} onLogout={handleLogout}/>
-  if (page === 'blocked') return <BlockedPage status={subscriptionStatus} onLogout={handleLogout} onRecheck={() => { setLoading(true); checkSubscription(user.id) }}/>
-  if (page === 'portal') return <ClientPortal clientId={clientInfo?.clientCode} clientName={clientInfo?.clientName} onLogout={handleLogout}/>
-  return <PromotIA autoAdmin={true} onLogout={handleLogout}/>
+
+  return (
+    <Routes>
+      {/* Rutas públicas */}
+      <Route path="/encuesta/:clientId" element={<SurveyRoute />} />
+      <Route path="/portal/:clientId" element={<PortalRoute onLogout={handleLogout} />} />
+
+      {/* Rutas de auth */}
+      <Route path="/login" element={<LoginPage onSuccess={() => setLoading(true)} onRegister={() => navigate('/register')} />} />
+      <Route path="/register" element={<RegisterPage onBack={() => navigate('/login')} onSuccess={() => setLoading(true)} />} />
+      <Route path="/checkout" element={<CheckoutPage user={user} onLogout={handleLogout} />} />
+      <Route path="/blocked" element={<BlockedPage status={subscriptionStatus} onLogout={handleLogout} onRecheck={() => { setLoading(true); checkSubscription(user.id) }} />} />
+
+      {/* App autenticada — PromotIA maneja /admin/* y /cliente/:id/* */}
+      <Route path="/*" element={<PromotIA onLogout={handleLogout} />} />
+
+      <Route path="/" element={<Navigate to="/login" replace />} />
+    </Routes>
+  )
 }
