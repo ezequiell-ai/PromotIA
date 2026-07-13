@@ -1786,7 +1786,7 @@ function AdminApp({db,update,onLogout}){
   <Shell nav={nav} active={seg} setActive={handleSetView} accentName="ADMINISTRACIÓN" brandSub="PromotIA · Delenio People"
     topRight={<><Tag tone="brand"><ShieldCheck size={12} style={{marginRight:4,verticalAlign:'-2px'}}/>Admin</Tag><Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn><Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn></>}>
     <Routes>
-      <Route index element={<Navigate to="panel" replace/>}/>
+      <Route index element={<Navigate to="/admin/panel" replace/>}/>
       <Route path="panel" element={<AdminPanel db={db} newDetCount={newDetCount} goClient={goClient}/>}/>
       <Route path="clientes" element={<AdminClientes db={db} update={update} goClient={goClient}/>}/>
       <Route path="detractores" element={<AdminDetractores db={db} update={update}/>}/>
@@ -1794,7 +1794,7 @@ function AdminApp({db,update,onLogout}){
       <Route path="uso" element={<AdminUso db={db}/>}/>
       <Route path="benchmark" element={<AdminBenchmark db={db}/>}/>
       <Route path="cross" element={<AdminCrossSell db={db}/>}/>
-      <Route path="*" element={<Navigate to="panel" replace/>}/>
+      <Route path="*" element={<Navigate to="/admin/panel" replace/>}/>
     </Routes>
   </Shell></>;
 }
@@ -1823,7 +1823,7 @@ function ClientAppShell({db,update,onLogout}){
       {fromAdmin?<Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={()=>navigate('/admin')}>Volver a admin</Btn>:<Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn>}
     </>}>
     <Routes>
-      <Route index element={<Navigate to="resumen" replace/>}/>
+      <Route index element={<Navigate to={`/cliente/${clientId}/resumen`} replace/>}/>
       <Route path="resumen" element={<ClientResumen db={db} clientId={clientId}/>}/>
       <Route path="historico" element={<ClientHistorico db={db} clientId={clientId}/>}/>
       <Route path="comparativa" element={<ClientComparativa db={db} clientId={clientId}/>}/>
@@ -1832,7 +1832,7 @@ function ClientAppShell({db,update,onLogout}){
       <Route path="informe" element={<ClientInforme db={db} clientId={clientId}/>}/>
       <Route path="contexto" element={<ClientContexto db={db} clientId={clientId} update={update}/>}/>
       <Route path="plan" element={<ClientPlan db={db} clientId={clientId} update={update}/>}/>
-      <Route path="*" element={<Navigate to="resumen" replace/>}/>
+      <Route path="*" element={<Navigate to={`/cliente/${clientId}/resumen`} replace/>}/>
     </Routes>
   </Shell></>;
 }
