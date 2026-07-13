@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   // GET — listar usuarios
   if (req.method === 'GET') {
     try {
-      const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/users?select=id,email,role,client_code`, {
+      const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/promotia_users?select=id,email,role,client_code`, {
         headers: { Authorization: `Bearer ${SERVICE_KEY}`, apikey: SERVICE_KEY },
       })
       const dbUsers = await dbRes.json()
@@ -72,7 +72,7 @@ export default async function handler(req, res) {
       const userId = authData.id
       const supabaseRole = role === 'Admin' ? 'admin' : 'viewer'
 
-      const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/users`, {
+      const dbRes = await fetch(`${SUPABASE_URL}/rest/v1/promotia_users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -101,7 +101,7 @@ export default async function handler(req, res) {
 
     // 3. Crear empresa en Supabase si no existe
     let { data: userRow } = await supabase
-      .from('users')
+      .from('promotia_users')
       .select('company_id')
       .eq('id', authUser.id)
       .maybeSingle()
@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         .single()
       companyId = company?.id
 
-      await supabase.from('users').upsert({
+      await supabase.from('promotia_users').upsert({
         id: authUser.id,
         company_id: companyId,
         email,

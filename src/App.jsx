@@ -64,7 +64,7 @@ export default function App() {
   async function checkSubscription(userId) {
     try {
       const { data: userRow } = await supabase
-        .from('users')
+        .from('promotia_users')
         .select('company_id, role, client_code, email')
         .eq('id', userId)
         .maybeSingle()
