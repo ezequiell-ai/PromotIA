@@ -127,9 +127,9 @@ export default function LoginPage({ onSuccess, onRegister }) {
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: 22 }}>
-            <span style={{ fontSize: 13.5, color: C.tx2 }}>¿No tenés cuenta? </span>
-            <button onClick={onRegister} style={{ background: 'none', border: 'none', color: C.primary, fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: BODY }}>Registrate</button>
+          <div style={{ textAlign: 'center', marginTop: 22, fontSize: 12.5, color: C.tx3 }}>
+            ¿Necesitás una cuenta? Solicitá acceso en{' '}
+            <a href="https://hub.talenio.tech" target="_blank" rel="noreferrer" style={{ color: C.primary, fontWeight: 700, textDecoration: 'none' }}>hub.talenio.tech</a>
           </div>
         </div>
       </div>
