@@ -1,16 +1,6 @@
-/*
-  Pantalla de selección de plan — redirige a Stripe Payment Links
+import { useState } from 'react'
 
-  ⚠️ IMPORTANTE: Reemplazá las URLs de PAYMENT_LINKS con las tuyas de Stripe.
-  Stripe Dashboard → Payment Links → crear un link por plan → copiar la URL.
-  Agregá ?prefilled_email=${user.email} para pre-llenar el email en Stripe.
-*/
-
-const PAYMENT_LINKS = {
-  start:  'https://buy.stripe.com/test_7sY6oJa8E8kh5fcb9hc7u00',
-  growth: 'https://buy.stripe.com/test_28E9AVdkQgQNbDA7X5c7u01',
-  scale:  'https://buy.stripe.com/test_aFadRbdkQasp6jg919c7u02',
-}
+const HUB_CHECKOUT = 'https://hub.talenio.tech/api/checkout'
 
 const C = {
   tx: '#1A0A1C', tx2: '#5E4E64', tx3: '#A99BB0', primary: '#73017B', magenta: '#E40993',
@@ -50,10 +40,30 @@ const PLANS = [
 ]
 
 export default function CheckoutPage({ user, onLogout }) {
-  function choosePlan(planId) {
-    const base = PAYMENT_LINKS[planId]
-    const url = user?.email ? `${base}?prefilled_email=${encodeURIComponent(user.email)}` : base
-    window.location.href = url
+  const [loading, setLoading] = useState(null)
+  const [checkoutErr, setCheckoutErr] = useState('')
+
+  async function choosePlan(planId) {
+    setLoading(planId); setCheckoutErr('')
+    try {
+      const res = await fetch(HUB_CHECKOUT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product: 'promotia',
+          plan: planId.charAt(0).toUpperCase() + planId.slice(1),
+          email: user?.email,
+          successUrl: `${window.location.origin}?checkout=success`,
+          cancelUrl:  `${window.location.origin}?checkout=cancel`,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) window.location.href = data.url
+      else setCheckoutErr(data.error || 'Error al iniciar el pago')
+    } catch (e) {
+      setCheckoutErr(e.message)
+    }
+    setLoading(null)
   }
 
   return (
@@ -89,15 +99,21 @@ export default function CheckoutPage({ user, onLogout }) {
               </ul>
               <button
                 onClick={() => choosePlan(p.id)}
-                style={{ width: '100%', padding: '13px', borderRadius: 11, border: p.featured ? 'none' : `1px solid ${C.line}`, background: p.featured ? '#fff' : C.grad, color: p.featured ? C.primary : '#fff', fontFamily: DISP, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+                disabled={!!loading}
+                style={{ width: '100%', padding: '13px', borderRadius: 11, border: p.featured ? 'none' : `1px solid ${C.line}`, background: p.featured ? '#fff' : C.grad, color: p.featured ? C.primary : '#fff', fontFamily: DISP, fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading && loading !== p.id ? 0.6 : 1 }}
               >
-                Empezar con {p.name} →
+                {loading === p.id ? 'Redirigiendo…' : `Empezar con ${p.name} →`}
               </button>
             </div>
           ))}
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 12.5, color: C.tx3, marginTop: 28 }}>
+        {checkoutErr && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#DC2626', marginTop: 20, textAlign: 'center' }}>
+            {checkoutErr}
+          </div>
+        )}
+        <p style={{ textAlign: 'center', fontSize: 12.5, color: C.tx3, marginTop: 20 }}>
           Pagás de forma segura con Stripe. No guardamos datos de tarjeta.
         </p>
       </div>
