@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
   const { data, error } = await supabase
-    .from('survey_responses')
+    .from('promotia_survey_responses')
     .select('client_id, score, sector, segmento')
 
   if (error) return res.status(500).json({ error: error.message })

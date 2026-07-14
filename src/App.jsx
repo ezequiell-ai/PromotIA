@@ -64,7 +64,7 @@ export default function App() {
   async function checkSubscription(userId) {
     try {
       const { data: userRow } = await supabase
-        .from('promotia_users')
+        .from('users')
         .select('company_id, role, client_code, email')
         .eq('id', userId)
         .maybeSingle()
@@ -83,7 +83,7 @@ export default function App() {
       }
 
       const { data: sub } = await supabase
-        .from('subscriptions').select('status').eq('company_id', userRow.company_id).maybeSingle()
+        .from('subscriptions').select('status').eq('company_id', userRow.company_id).eq('product', 'promotia').maybeSingle()
       const status = sub?.status || 'none'
       setSubscriptionStatus(status)
       navigate(!sub || status === 'canceled' || status === 'unpaid' ? '/blocked' : '/admin')

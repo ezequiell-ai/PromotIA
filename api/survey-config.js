@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { clientId } = req.query
     if (!clientId) return res.status(400).json({ error: 'clientId requerido' })
-    const { data, error } = await supabase.from('survey_configs').select('*').eq('client_id', clientId).maybeSingle()
+    const { data, error } = await supabase.from('promotia_survey_configs').select('*').eq('client_id', clientId).maybeSingle()
     if (error) return res.status(500).json({ error: error.message })
     return res.status(200).json(data || {})
   }
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     const { clientId, title, logoUrl, primaryColor, question } = req.body
     if (!clientId) return res.status(400).json({ error: 'clientId requerido' })
-    const { error } = await supabase.from('survey_configs').upsert({
+    const { error } = await supabase.from('promotia_survey_configs').upsert({
       client_id: clientId,
       title: title || null,
       logo_url: logoUrl || null,

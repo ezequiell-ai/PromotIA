@@ -37,7 +37,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     try {
       const r = await fetch(
-        `${SUPABASE_URL}/rest/v1/app_state?key=eq.${encodeURIComponent(STATE_KEY)}&select=value&limit=1`,
+        `${SUPABASE_URL}/rest/v1/promotia_app_state?key=eq.${encodeURIComponent(STATE_KEY)}&select=value&limit=1`,
         { headers }
       )
       if (!r.ok) return res.status(500).json({ error: 'Error leyendo estado' })
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
     try {
       const { value } = req.body || {}
       if (value == null) return res.status(400).json({ error: 'value requerido' })
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/app_state`, {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/promotia_app_state`, {
         method: 'POST',
         headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
         body: JSON.stringify({ key: STATE_KEY, value, updated_at: new Date().toISOString() }),
@@ -73,7 +73,7 @@ export default async function handler(req, res) {
   if (req.method === 'DELETE') {
     try {
       await fetch(
-        `${SUPABASE_URL}/rest/v1/app_state?key=eq.${encodeURIComponent(STATE_KEY)}`,
+        `${SUPABASE_URL}/rest/v1/promotia_app_state?key=eq.${encodeURIComponent(STATE_KEY)}`,
         { method: 'DELETE', headers }
       )
       return res.status(200).json({ ok: true })

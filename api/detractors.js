@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
   let query = supabase
-    .from('survey_responses')
+    .from('promotia_survey_responses')
     .select('id, client_id, score, comment, name, company, created_at')
     .lte('score', 6)
     .order('created_at', { ascending: false })

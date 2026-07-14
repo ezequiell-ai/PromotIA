@@ -24,7 +24,7 @@ export default async function handler(req, res) {
   )
 
   const { error } = await supabase
-    .from('survey_responses')
+    .from('promotia_survey_responses')
     .insert({ client_id: clientId, score, comment: comment || null, name: name || null, company: company || null })
 
   if (error) {

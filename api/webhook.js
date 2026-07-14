@@ -27,7 +27,7 @@ const PLAN_NAMES = { start: 'Start', growth: 'Growth', scale: 'Scale' }
 // Lee el app_state de Supabase y devuelve el objeto db parseado
 async function readDB(supabase) {
   const { data } = await supabase
-    .from('app_state')
+    .from('promotia_app_state')
     .select('value')
     .eq('key', 'promotia:DB')
     .maybeSingle()
@@ -37,7 +37,7 @@ async function readDB(supabase) {
 
 // Guarda el db en app_state de Supabase
 async function writeDB(supabase, db) {
-  await supabase.from('app_state').upsert(
+  await supabase.from('promotia_app_state').upsert(
     { key: 'promotia:DB', value: JSON.stringify(db), updated_at: new Date().toISOString() },
     { onConflict: 'key' }
   )
@@ -99,9 +99,9 @@ export default async function handler(req, res) {
       else if (priceId === process.env.STRIPE_PRICE_SCALE) planId = 'scale'
     }
 
-    // 3. Crear empresa en Supabase si no existe
+    // 3. Crear empresa en tabla core companies si no existe
     let { data: userRow } = await supabase
-      .from('promotia_users')
+      .from('users')
       .select('company_id')
       .eq('id', authUser.id)
       .maybeSingle()
@@ -110,14 +110,25 @@ export default async function handler(req, res) {
     const companyName = customerName || email.split('@')[1] || 'Mi empresa'
 
     if (!companyId) {
-      const { data: company } = await supabase
+      // Buscar por stripe_customer_id primero (puede venir de Climia)
+      const { data: existingCompany } = await supabase
         .from('companies')
-        .insert({ name: companyName, stripe_customer_id: customerId, is_active: true, plan_id: planId })
         .select('id')
-        .single()
-      companyId = company?.id
+        .eq('stripe_customer_id', customerId)
+        .maybeSingle()
 
-      await supabase.from('promotia_users').upsert({
+      if (existingCompany) {
+        companyId = existingCompany.id
+      } else {
+        const { data: company } = await supabase
+          .from('companies')
+          .insert({ name: companyName, stripe_customer_id: customerId, is_active: true })
+          .select('id')
+          .single()
+        companyId = company?.id
+      }
+
+      await supabase.from('users').upsert({
         id: authUser.id,
         company_id: companyId,
         email,
@@ -126,21 +137,22 @@ export default async function handler(req, res) {
     } else {
       await supabase
         .from('companies')
-        .update({ stripe_customer_id: customerId, is_active: true, plan_id: planId })
+        .update({ stripe_customer_id: customerId, is_active: true })
         .eq('id', companyId)
     }
 
-    // 4. Registrar suscripción
+    // 4. Registrar suscripción con product = 'promotia'
     await supabase.from('subscriptions').upsert({
       company_id: companyId,
+      product: 'promotia',
       stripe_subscription_id: subscriptionId,
-      plan_id: planId,
+      plan: planId,
       status: 'active',
       current_period_end: subDetails
         ? new Date(subDetails.current_period_end * 1000).toISOString()
         : null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'company_id' })
+    }, { onConflict: 'stripe_subscription_id' })
 
     // 5. Agregar cliente al app_state (base de datos de la app)
     const db = await readDB(supabase)

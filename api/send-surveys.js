@@ -30,7 +30,7 @@ export default async function handler(req, res) {
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
 
   const { data: stateRow } = await supabase
-    .from('app_state')
+    .from('promotia_app_state')
     .select('value')
     .eq('key', 'promotia:DB')
     .maybeSingle()
@@ -81,7 +81,7 @@ export default async function handler(req, res) {
 
   // Registrar en Supabase para auditoría (tabla survey_send_log si existe, si no se ignora)
   if (queued.length) {
-    await supabase.from('survey_send_log').insert(
+    await supabase.from('promotia_survey_send_log').insert(
       queued.map(q => ({
         client_id: clients.find(c => c.name === q.client)?.id,
         email: q.email,

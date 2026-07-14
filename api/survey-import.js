@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   )
 
   let query = supabase
-    .from('survey_responses')
+    .from('promotia_survey_responses')
     .select('score, comment, name, company, segmento, sector, region, created_at')
     .eq('client_id', clientId)
     .order('created_at', { ascending: false })
