@@ -74,7 +74,7 @@ export default function App() {
     try {
       const { data: userRow } = await supabase
         .from('users')
-        .select('company_id, role, client_code, email')
+        .select('company_id, role, client_code, email, products')
         .eq('id', userId)
         .maybeSingle()
 
@@ -89,6 +89,11 @@ export default function App() {
       }
       if (!userRow?.company_id) {
         navigate('/checkout'); setLoading(false); return
+      }
+
+      // Chequeo de acceso por usuario (products[])
+      if (userRow.products && userRow.products.length > 0 && !userRow.products.includes('promotia')) {
+        setSubscriptionStatus('no_product'); navigate('/blocked'); setLoading(false); return
       }
 
       const { data: sub } = await supabase

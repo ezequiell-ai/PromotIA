@@ -11,7 +11,8 @@ const MESSAGES = {
   canceled: { icon: '🚫', title: 'Suscripción cancelada', sub: 'Tu suscripción fue cancelada. Volvé a suscribirte para retomar el acceso.' },
   unpaid: { icon: '💳', title: 'Pago pendiente', sub: 'Hay un problema con tu método de pago. Actualizá tu tarjeta para restablecer el acceso.' },
   past_due: { icon: '⚠️', title: 'Pago vencido', sub: 'El último pago falló. Actualizá tu tarjeta para mantener el acceso.' },
-  none: { icon: '🔒', title: 'Sin suscripción activa', sub: 'No encontramos una suscripción activa para tu cuenta.' },
+  none:       { icon: '🔒', title: 'Sin suscripción activa',  sub: 'No encontramos una suscripción activa para tu cuenta.' },
+  no_product: { icon: '🔒', title: 'Sin acceso a PromotIA',  sub: 'Tu usuario no tiene acceso habilitado a PromotIA. Contactá a tu administrador en hub.talenio.tech.' },
 }
 
 export default function BlockedPage({ status, onLogout, onRecheck }) {
