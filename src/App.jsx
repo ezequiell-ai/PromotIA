@@ -80,6 +80,11 @@ export default function App() {
   }, [])
 
   async function checkAccess(authUser) {
+    // Admin @delenio.net: acceso completo sin necesidad de fila en users
+    if (authUser.email?.endsWith('@delenio.net')) {
+      setLoading(false)
+      return
+    }
     const { data: userRow } = await supabase
       .from('users')
       .select('role, company_id, client_code')
