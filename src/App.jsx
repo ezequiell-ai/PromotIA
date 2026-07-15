@@ -32,6 +32,15 @@ function LoadingScreen() {
   )
 }
 
+// Redirige al hub para login con la URL de retorno
+function HubRedirect() {
+  useEffect(() => {
+    const redirectUrl = encodeURIComponent(window.location.origin)
+    window.location.href = `https://hub.talenio.tech?redirect=${redirectUrl}`
+  }, [])
+  return null
+}
+
 // Wrappers para rutas públicas que necesitan useParams
 function SurveyRoute() {
   const { clientId } = useParams()
@@ -118,8 +127,8 @@ export default function App() {
       <Route path="/encuesta/:clientId" element={<SurveyRoute />} />
       <Route path="/portal/:clientId" element={<PortalRoute onLogout={handleLogout} />} />
 
-      {/* Rutas de auth */}
-      <Route path="/login" element={<LoginPage onSuccess={() => setLoading(true)} onRegister={() => navigate('/register')} />} />
+      {/* Sin sesión → hub */}
+      <Route path="/login" element={<HubRedirect />} />
       <Route path="/register" element={<RegisterPage onBack={() => navigate('/login')} onSuccess={() => setLoading(true)} />} />
       <Route path="/checkout" element={<CheckoutPage user={user} onLogout={handleLogout} />} />
       <Route path="/blocked" element={<BlockedPage status={subscriptionStatus} onLogout={handleLogout} onRecheck={() => { setLoading(true); checkSubscription(user.id) }} />} />
