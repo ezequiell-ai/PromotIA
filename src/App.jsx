@@ -80,8 +80,12 @@ export default function App() {
   }, [])
 
   async function checkAccess(authUser) {
-    // Admin @delenio.net: acceso completo sin necesidad de fila en users
+    // Admin @delenio.net: garantizar fila en users para que RLS permita acceso a los datos
     if (authUser.email?.endsWith('@delenio.net')) {
+      await supabase.from('users').upsert(
+        { id: authUser.id, email: authUser.email, role: 'admin' },
+        { onConflict: 'id' }
+      )
       setLoading(false)
       return
     }
