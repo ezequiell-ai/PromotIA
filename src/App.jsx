@@ -63,27 +63,16 @@ export default function App() {
   const [noAccess, setNoAccess] = useState(false)
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const accessToken = urlParams.get('access_token')
-    const refreshToken = urlParams.get('refresh_token')
-
-    const init = accessToken && refreshToken
-      ? supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-          .then(() => { window.history.replaceState({}, '', window.location.pathname); return supabase.auth.getSession() })
-      : supabase.auth.getSession()
-
-    init.then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-        checkAccess(session.user)
-      } else {
-        // Sin sesión → hub
-        window.location.href = `https://hub.talenio.tech?redirect=${encodeURIComponent(window.location.origin)}`
-      }
-    })
-
-    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
+    // INITIAL_SESSION: Supabase lo dispara una vez al arrancar, ya con el hash fragment procesado
+    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'INITIAL_SESSION') {
+        if (session?.user) {
+          setUser(session.user)
+          await checkAccess(session.user)
+        } else {
+          window.location.href = `https://hub.talenio.tech?redirect=${encodeURIComponent(window.location.origin)}`
+        }
+      } else if (event === 'SIGNED_OUT') {
         window.location.href = 'https://hub.talenio.tech'
       }
     })
