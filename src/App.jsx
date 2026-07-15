@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import PromotIA from './PromotIA'
@@ -57,6 +57,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [loading, setLoading] = useState(true)
+  const initDone = useRef(false) // evita doble checkSubscription
 
   useEffect(() => {
     // SSO desde Talenio Hub
@@ -69,12 +70,16 @@ export default function App() {
       : supabase.auth.getSession()
 
     initSession.then(({ data: { session } }) => {
-      if (session?.user) { setUser(session.user); checkSubscription(session.user.id) }
-      else setLoading(false)
+      if (session?.user) {
+        if (!initDone.current) { initDone.current = true; setUser(session.user); checkSubscription(session.user.id) }
+      } else {
+        setLoading(false)
+      }
     })
     const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) { setUser(session.user); checkSubscription(session.user.id) }
-      else if (event === 'SIGNED_OUT') { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
+      if (event === 'SIGNED_OUT') { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
+      // SIGNED_IN/TOKEN_REFRESHED: solo actuar si init ya resolvió (post-login normal)
+      else if (session?.user && initDone.current) { setUser(session.user) }
     })
     return () => authListener.unsubscribe()
   }, [])
