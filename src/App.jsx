@@ -72,9 +72,9 @@ export default function App() {
       if (session?.user) { setUser(session.user); checkSubscription(session.user.id) }
       else setLoading(false)
     })
-    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) { setUser(session.user); checkSubscription(session.user.id) }
-      else { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
+      else if (event === 'SIGNED_OUT') { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
     })
     return () => authListener.unsubscribe()
   }, [])
