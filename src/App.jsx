@@ -1,11 +1,7 @@
-import { useState, useEffect, useRef } from 'react'
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { Routes, Route, useParams } from 'react-router-dom'
 import { supabase } from './lib/supabase'
 import PromotIA from './PromotIA'
-import LoginPage from './pages/Login'
-import RegisterPage from './pages/Register'
-import CheckoutPage from './pages/Checkout'
-import BlockedPage from './pages/Blocked'
 import SurveyPage from './pages/Survey'
 import ClientPortal from './pages/ClientPortal'
 
@@ -32,16 +28,25 @@ function LoadingScreen() {
   )
 }
 
-// Redirige al hub para login con la URL de retorno
-function HubRedirect() {
-  useEffect(() => {
-    const redirectUrl = encodeURIComponent(window.location.origin)
-    window.location.href = `https://hub.talenio.tech?redirect=${redirectUrl}`
-  }, [])
-  return null
+function NoAcceso({ email, onLogout }) {
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: C.surface, fontFamily: DISP }}>
+      <div style={{ textAlign: 'center', maxWidth: 380, padding: 24 }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A0A1C', margin: '0 0 10px' }}>Sin acceso a PromotIA</h2>
+        <p style={{ fontSize: 13.5, color: '#5E4E64', lineHeight: 1.6, margin: '0 0 20px' }}>
+          Tu cuenta ({email}) está autenticada pero no tiene un perfil en PromotIA. Contactá a tu administrador en{' '}
+          <a href="https://hub.talenio.tech" style={{ color: C.primary, fontWeight: 600 }}>hub.talenio.tech</a>.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a href="https://hub.talenio.tech" style={{ padding: '9px 20px', background: C.primary, color: '#fff', borderRadius: 8, fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>Ir al Hub</a>
+          <button onClick={onLogout} style={{ padding: '9px 20px', background: 'none', border: `1px solid #D1C4D4`, color: '#5E4E64', borderRadius: 8, fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
-// Wrappers para rutas públicas que necesitan useParams
 function SurveyRoute() {
   const { clientId } = useParams()
   return <SurveyPage clientId={clientId} />
@@ -53,95 +58,68 @@ function PortalRoute({ onLogout }) {
 }
 
 export default function App() {
-  const navigate = useNavigate()
   const [user, setUser] = useState(null)
-  const [subscriptionStatus, setSubscriptionStatus] = useState(null)
   const [loading, setLoading] = useState(true)
-  const initDone = useRef(false) // evita doble checkSubscription
+  const [noAccess, setNoAccess] = useState(false)
 
   useEffect(() => {
-    // SSO desde Talenio Hub
     const urlParams = new URLSearchParams(window.location.search)
     const accessToken = urlParams.get('access_token')
     const refreshToken = urlParams.get('refresh_token')
-    const initSession = accessToken && refreshToken
+
+    const init = accessToken && refreshToken
       ? supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
           .then(() => { window.history.replaceState({}, '', window.location.pathname); return supabase.auth.getSession() })
       : supabase.auth.getSession()
 
-    initSession.then(({ data: { session } }) => {
+    init.then(({ data: { session } }) => {
       if (session?.user) {
-        if (!initDone.current) { initDone.current = true; setUser(session.user); checkSubscription(session.user.id) }
+        setUser(session.user)
+        checkAccess(session.user)
       } else {
-        setLoading(false)
+        // Sin sesión → hub
+        window.location.href = `https://hub.talenio.tech?redirect=${encodeURIComponent(window.location.origin)}`
       }
     })
-    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT') { setUser(null); setSubscriptionStatus(null); setLoading(false); navigate('/login') }
-      // SIGNED_IN/TOKEN_REFRESHED: solo actuar si init ya resolvió (post-login normal)
-      else if (session?.user && initDone.current) { setUser(session.user) }
+
+    const { data: { subscription: authListener } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        window.location.href = 'https://hub.talenio.tech'
+      }
     })
     return () => authListener.unsubscribe()
   }, [])
 
-  async function checkSubscription(userId) {
-    try {
-      const { data: userRow } = await supabase
-        .from('users')
-        .select('company_id, role, client_code, email, products')
-        .eq('id', userId)
-        .maybeSingle()
+  async function checkAccess(authUser) {
+    const { data: userRow } = await supabase
+      .from('users')
+      .select('role, company_id, client_code')
+      .eq('id', authUser.id)
+      .maybeSingle()
 
-      if (!userRow || userRow?.role === 'admin') {
-        navigate('/admin'); setLoading(false); return
-      }
-      if (userRow?.role === 'viewer' && userRow?.client_code) {
-        navigate('/portal/' + userRow.client_code); setLoading(false); return
-      }
-      if (userRow?.role === 'viewer') {
-        navigate('/admin'); setLoading(false); return
-      }
-      if (!userRow?.company_id) {
-        navigate('/checkout'); setLoading(false); return
-      }
-
-      // Chequeo de acceso por usuario (products[])
-      if (userRow.products && userRow.products.length > 0 && !userRow.products.includes('promotia')) {
-        setSubscriptionStatus('no_product'); navigate('/blocked'); setLoading(false); return
-      }
-
-      const { data: sub } = await supabase
-        .from('subscriptions').select('status').eq('company_id', userRow.company_id).eq('product', 'promotia').maybeSingle()
-      const status = sub?.status || 'none'
-      setSubscriptionStatus(status)
-      navigate(!sub || status === 'canceled' || status === 'unpaid' ? '/blocked' : '/admin')
-    } catch (e) {
-      console.error('checkSubscription error:', e)
-      navigate('/admin')
+    if (!userRow) {
+      setNoAccess(true)
     }
     setLoading(false)
   }
 
-  async function handleLogout() { await supabase.auth.signOut() }
+  async function handleLogout() {
+    await supabase.auth.signOut()
+    window.location.href = 'https://hub.talenio.tech'
+  }
 
   if (loading) return <LoadingScreen />
 
+  if (noAccess) return <NoAcceso email={user?.email} onLogout={handleLogout} />
+
   return (
     <Routes>
-      {/* Rutas públicas */}
+      {/* Rutas públicas — no requieren sesión */}
       <Route path="/encuesta/:clientId" element={<SurveyRoute />} />
       <Route path="/portal/:clientId" element={<PortalRoute onLogout={handleLogout} />} />
 
-      {/* Sin sesión → hub */}
-      <Route path="/login" element={<HubRedirect />} />
-      <Route path="/register" element={<RegisterPage onBack={() => navigate('/login')} onSuccess={() => setLoading(true)} />} />
-      <Route path="/checkout" element={<CheckoutPage user={user} onLogout={handleLogout} />} />
-      <Route path="/blocked" element={<BlockedPage status={subscriptionStatus} onLogout={handleLogout} onRecheck={() => { setLoading(true); checkSubscription(user.id) }} />} />
-
       {/* App autenticada — PromotIA maneja /admin/* y /cliente/:id/* */}
       <Route path="/*" element={<PromotIA onLogout={handleLogout} />} />
-
-      <Route path="/" element={<Navigate to="/login" replace />} />
     </Routes>
   )
 }
