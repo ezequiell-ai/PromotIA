@@ -47,6 +47,32 @@ function NoAcceso({ email, onLogout }) {
   )
 }
 
+function SinSuscripcion({ status, onLogout }) {
+  const msgs = {
+    no_company: 'Tu usuario no tiene una empresa asignada.',
+    no_product: 'Tu usuario no tiene acceso habilitado a PromotIA.',
+    none:       'Tu empresa no tiene una suscripción activa en PromotIA.',
+    suspended:  'Tu suscripción a PromotIA está suspendida.',
+  }
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: C.surface, fontFamily: DISP }}>
+      <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
+        <div style={{ fontSize: 44, marginBottom: 16 }}>🔒</div>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1A0A1C', margin: '0 0 10px' }}>Acceso no disponible</h2>
+        <p style={{ fontSize: 13.5, color: '#5E4E64', lineHeight: 1.6, margin: '0 0 20px' }}>
+          {msgs[status] || 'No tenés acceso activo a PromotIA.'}{' '}
+          Podés gestionar tu suscripción en{' '}
+          <a href="https://hub.talenio.tech" style={{ color: C.primary, fontWeight: 600 }}>hub.talenio.tech</a>.
+        </p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <a href="https://hub.talenio.tech" style={{ padding: '9px 20px', background: C.primary, color: '#fff', borderRadius: 8, fontWeight: 600, fontSize: 13.5, textDecoration: 'none' }}>Ir al Hub</a>
+          <button onClick={onLogout} style={{ padding: '9px 20px', background: 'none', border: '1px solid #D1C4D4', color: '#5E4E64', borderRadius: 8, fontWeight: 600, fontSize: 13.5, cursor: 'pointer' }}>Cerrar sesión</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SurveyRoute() {
   const { clientId } = useParams()
   return <SurveyPage clientId={clientId} />
@@ -61,6 +87,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [noAccess, setNoAccess] = useState(false)
+  const [subStatus, setSubStatus] = useState(null)
 
   useEffect(() => {
     // INITIAL_SESSION: Supabase lo dispara una vez al arrancar, ya con el hash fragment procesado
@@ -80,24 +107,33 @@ export default function App() {
   }, [])
 
   async function checkAccess(authUser) {
-    // Admin @delenio.net: garantizar fila en users para que RLS permita acceso a los datos
+    // Admin @delenio.net: acceso completo sin chequeo de suscripción
     if (authUser.email?.endsWith('@delenio.net')) {
       await supabase.from('users').upsert(
         { id: authUser.id, email: authUser.email, role: 'admin' },
         { onConflict: 'id' }
       )
+      setSubStatus('active')
       setLoading(false)
       return
     }
     const { data: userRow } = await supabase
       .from('users')
-      .select('role, company_id, client_code')
+      .select('role, company_id, products')
       .eq('id', authUser.id)
       .maybeSingle()
 
     if (!userRow) {
       setNoAccess(true)
+      setLoading(false)
+      return
     }
+
+    // Verificar suscripción activa
+    if (!userRow.company_id) { setSubStatus('no_company'); setLoading(false); return }
+    if (userRow.products?.length > 0 && !userRow.products.includes('promotia')) { setSubStatus('no_product'); setLoading(false); return }
+    const { data: sub } = await supabase.from('subscriptions').select('status').eq('company_id', userRow.company_id).eq('product', 'promotia').maybeSingle()
+    setSubStatus(sub?.status || 'none')
     setLoading(false)
   }
 
@@ -107,8 +143,8 @@ export default function App() {
   }
 
   if (loading) return <LoadingScreen />
-
   if (noAccess) return <NoAcceso email={user?.email} onLogout={handleLogout} />
+  if (subStatus !== 'active') return <SinSuscripcion status={subStatus} onLogout={handleLogout} />
 
   return (
     <Routes>
