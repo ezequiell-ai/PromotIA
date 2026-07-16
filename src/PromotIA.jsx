@@ -5,48 +5,74 @@ import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Target, Upload, Che
 import * as XLSX from 'xlsx';
 import { supabase } from './lib/supabase';
 
-/* ============================ PERSISTENCIA (autocontenida) ============================
-   Fuente de verdad: función serverless /api/state (Supabase, credenciales en el servidor).
-   Si /api/state no existe (todavía sin Supabase o en `vite dev`), cae a localStorage.
-   Así la app nunca se rompe. Toda la app guarda su estado bajo una sola clave (DB_KEY). */
+/* ============================ PERSISTENCIA ============================
+   Fuente de verdad: Supabase vía funciones serverless.
+   - Estado general (planes, voces, followups): /api/state
+   - Clientes: /api/clients (tabla relacional promotia_clients)
+   No hay fallback a localStorage — si el servidor falla, se muestra error. */
 const STATE_URL = '/api/state';
-const LS_PREFIX = 'promotia:';
-let serverOK = true;
-const lsGet = k => { try { const v = localStorage.getItem(LS_PREFIX + k); return v == null ? null : { key: k, value: v }; } catch (e) { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem(LS_PREFIX + k, v); return { key: k, value: v }; } catch (e) { return null; } };
-const lsDel = k => { try { localStorage.removeItem(LS_PREFIX + k); return { key: k, deleted: true }; } catch (e) { return null; } };
+const CLIENTS_URL = '/api/clients';
 const storage = {
   async get(key) {
-    try {
-      const r = await fetch(STATE_URL, { method: 'GET' });
-      if (r.ok) {
-        const d = await r.json();
-        if (d && d.value != null) { lsSet(key, d.value); return { key, value: d.value }; }
-        // Supabase OK pero sin datos — puede haber algo en localStorage de antes
-        const ls = lsGet(key);
-        if (ls) {
-          // Migrar localStorage → Supabase
-          await storage.set(key, ls.value);
-          return ls;
-        }
-        return null;
+    const [blobR, clientsR] = await Promise.allSettled([
+      fetch(STATE_URL, { method: 'GET' }),
+      fetch(CLIENTS_URL, { method: 'GET' }),
+    ]);
+    let parsed = null;
+    let blobClients = [];
+    if (blobR.status === 'fulfilled' && blobR.value.ok) {
+      const d = await blobR.value.json();
+      if (d?.value) {
+        parsed = JSON.parse(d.value);
+        blobClients = parsed.clients || [];
       }
-      if (r.status === 404 || r.status === 501) serverOK = false;
-    } catch (e) { /* error de red temporal — caemos a localStorage */ }
-    return lsGet(key);
+    }
+    if (!parsed) parsed = seedDB();
+    if (clientsR.status === 'fulfilled' && clientsR.value.ok) {
+      const d = await clientsR.value.json();
+      if (d.clients && d.clients.length > 0) {
+        // Tabla tiene datos — es la fuente de verdad
+        parsed.clients = d.clients;
+      } else if (blobClients.length > 0) {
+        // Tabla vacía pero blob tiene clientes — migrar silenciosamente
+        parsed.clients = blobClients;
+        blobClients.forEach(c => storage.syncClient(c).catch(() => {}));
+      } else {
+        parsed.clients = [];
+      }
+    } else {
+      // API de clientes falló — usar lo que haya en blob
+      parsed.clients = blobClients;
+    }
+    return { key, value: JSON.stringify(parsed) };
   },
   async set(key, value) {
-    lsSet(key, value);
-    try {
-      const r = await fetch(STATE_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value }) });
-      if (!r.ok && (r.status === 404 || r.status === 501)) serverOK = false;
-    } catch (e) { /* silencioso — ya guardó en localStorage */ }
+    // Guardar blob sin clients (clients se sincronizan por separado)
+    const parsed = JSON.parse(value);
+    const blobState = { ...parsed, clients: [] };
+    const r = await fetch(STATE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value: JSON.stringify(blobState) }),
+    });
+    if (!r.ok) throw new Error('Error al guardar estado en servidor');
     return { key, value };
   },
   async delete(key) {
-    lsDel(key);
-    try { await fetch(STATE_URL, { method: 'DELETE' }); } catch (e) {}
+    await fetch(STATE_URL, { method: 'DELETE' });
     return { key, deleted: true };
+  },
+  async syncClient(client) {
+    const r = await fetch(CLIENTS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client }),
+    });
+    if (!r.ok) throw new Error('Error al guardar cliente');
+  },
+  async deleteClient(id) {
+    const r = await fetch(`${CLIENTS_URL}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!r.ok) throw new Error('Error al eliminar cliente');
   },
 };
 
@@ -629,12 +655,11 @@ function StripePortalBtn({ customerId }) {
 function AdminClientes({db,update,goClient}){
   const [edit,setEdit]=useState(null); const [del,setDel]=useState(null); const [qr,setQr]=useState(null);
   const blank={id:'',name:'',code:'',web:'',sector:'',contexto:'',productos:[''],propuesta:'',segmentos:[...SEGMENTOS],notas:'',surveyTitle:'',surveyColor:'#73017B',surveyLogo:'',surveyQuestion:'¿Qué tan probable es que nos recomiendes?',surveyFrequency:'ninguna',contactEmails:'',npsTarget:'',npsTargetLabel:''};
-  const save=()=>{ const c={...edit, productos:(edit.productos||[]).map(s=>s.trim()).filter(Boolean)}; if(!c.name.trim())return;
-    let savedId=c.id;
-    update(d=>{ if(c.id){ const i=d.clients.findIndex(x=>x.id===c.id); d.clients[i]={...c}; savedId=c.id; }
-      else { savedId=uid('c'); d.clients.push({...c,id:savedId,code:c.code||c.name.slice(0,3).toUpperCase()+'-'+Math.random().toString(36).slice(2,5).toUpperCase()}); d.data[savedId]={months:[]}; } });
-    // Persistir config de encuesta en Supabase
-    setTimeout(()=>{ fetch('/api/survey-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:savedId,title:c.surveyTitle,primaryColor:c.surveyColor,logoUrl:c.surveyLogo,question:c.surveyQuestion})}); },100);
+  const save=async()=>{ const c={...edit, productos:(edit.productos||[]).map(s=>s.trim()).filter(Boolean)}; if(!c.name.trim())return;
+    if(!c.id){ c.id=uid('c'); if(!c.code) c.code=c.name.slice(0,3).toUpperCase()+'-'+Math.random().toString(36).slice(2,5).toUpperCase(); }
+    update(d=>{ const i=d.clients.findIndex(x=>x.id===c.id); if(i>=0){ d.clients[i]={...c}; } else { d.clients.push({...c}); if(!d.data[c.id]) d.data[c.id]={months:[]}; } });
+    storage.syncClient(c).catch(()=>{});
+    fetch('/api/survey-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:c.id,title:c.surveyTitle,primaryColor:c.surveyColor,logoUrl:c.surveyLogo,question:c.surveyQuestion})});
     setEdit(null); };
   const setProd=(i,v)=>setEdit(e=>{ const p=[...(e.productos||[])]; p[i]=v; return {...e,productos:p}; });
   return <div>
@@ -722,7 +747,7 @@ function AdminClientes({db,update,goClient}){
     <Modal open={!!del} onClose={()=>setDel(null)} title="Eliminar cliente" icon={Trash2} width={440}>
       {del&&<div>
         <p style={{fontSize:13.5,color:C.tx2,lineHeight:1.5,margin:'0 0 18px'}}>Vas a eliminar <b>{del.name}</b> y todas sus respuestas NPS. Esta acción no se puede deshacer.</p>
-        <div style={{display:'flex',justifyContent:'flex-end',gap:8}}><Btn variant="ghost" onClick={()=>setDel(null)}>Cancelar</Btn><Btn variant="danger" icon={Trash2} onClick={()=>{update(d=>{d.clients=d.clients.filter(x=>x.id!==del.id); delete d.data[del.id];}); setDel(null);}}>Eliminar</Btn></div>
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8}}><Btn variant="ghost" onClick={()=>setDel(null)}>Cancelar</Btn><Btn variant="danger" icon={Trash2} onClick={()=>{const id=del.id; update(d=>{d.clients=d.clients.filter(x=>x.id!==id); delete d.data[id];}); storage.deleteClient(id).catch(()=>{}); setDel(null);}}>Eliminar</Btn></div>
       </div>}
     </Modal>
     {qr&&<QRModal url={`${window.location.origin}/encuesta/${qr.id}`} name={qr.name} onClose={()=>setQr(null)}/>}
@@ -1837,19 +1862,29 @@ function ClientAppShell({db,update,onLogout}){
 export default function PromotIA({ onLogout }){
   const [db,setDb]=useState(null);
   const [loading,setLoading]=useState(true);
+  const [loadError,setLoadError]=useState(null);
 
   useEffect(()=>{ (async()=>{
-    try{ const r=await storage.get(DB_KEY); if(r&&r.value){ setDb(JSON.parse(r.value)); setLoading(false); return; } }catch(e){}
-    const seed=seedDB();
-    try{ await storage.set(DB_KEY, JSON.stringify(seed)); }catch(e){}
-    setDb(seed); setLoading(false);
+    try{
+      const r=await storage.get(DB_KEY);
+      if(r?.value){ setDb(JSON.parse(r.value)); setLoading(false); return; }
+      // Primer uso — sin datos aún
+      const seed=seedDB();
+      await storage.set(DB_KEY, JSON.stringify(seed));
+      setDb(seed); setLoading(false);
+    }catch(e){
+      setLoadError('No se pudo conectar al servidor. Verificá tu conexión e intentá de nuevo.');
+      setLoading(false);
+    }
   })(); },[]);
 
   function update(fn){ setDb(prev=>{ const next=JSON.parse(JSON.stringify(prev)); fn(next);
-    (async()=>{ try{ await storage.set(DB_KEY, JSON.stringify(next)); }catch(e){} })();
+    (async()=>{ try{ await storage.set(DB_KEY, JSON.stringify(next)); }catch(e){ console.error('Error guardando estado:', e); } })();
     return next; }); }
 
-  if(loading||!db) return <div className="promotia"><GlobalStyle/><div style={{minHeight:'100vh',display:'grid',placeItems:'center',background:C.surface2}}><div style={{textAlign:'center'}}><div style={{display:'inline-grid',placeItems:'center',marginBottom:14}}><Mark size={52}/></div><div style={{display:'flex',alignItems:'center',gap:9,color:C.tx2,fontWeight:600}}><Spinner size={16} color={C.primary}/>Cargando PromotIA…</div></div></div></div>;
+  if(loading) return <div className="promotia"><GlobalStyle/><div style={{minHeight:'100vh',display:'grid',placeItems:'center',background:C.surface2}}><div style={{textAlign:'center'}}><div style={{display:'inline-grid',placeItems:'center',marginBottom:14}}><Mark size={52}/></div><div style={{display:'flex',alignItems:'center',gap:9,color:C.tx2,fontWeight:600}}><Spinner size={16} color={C.primary}/>Cargando PromotIA…</div></div></div></div>;
+  if(loadError) return <div className="promotia"><GlobalStyle/><div style={{minHeight:'100vh',display:'grid',placeItems:'center',background:C.surface2}}><div style={{textAlign:'center',maxWidth:360,padding:32}}><Mark size={52}/><h2 style={{fontSize:20,fontWeight:700,margin:'16px 0 8px',color:C.tx}}>Error de conexión</h2><p style={{fontSize:14,color:C.tx2,lineHeight:1.6,marginBottom:20}}>{loadError}</p><button onClick={()=>window.location.reload()} style={{padding:'10px 24px',borderRadius:10,background:C.primary,color:'#fff',border:'none',fontWeight:700,fontSize:14,cursor:'pointer'}}>Reintentar</button></div></div></div>;
+  if(!db) return null;
 
   return <div className="promotia"><GlobalStyle/>
     <Routes>
