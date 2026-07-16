@@ -11,7 +11,7 @@ import { supabase } from './lib/supabase';
    - Clientes: /api/clients (tabla relacional promotia_clients)
    No hay fallback a localStorage — si el servidor falla, se muestra error. */
 const STATE_URL = '/api/state';
-const CLIENTS_URL = '/api/clients';
+const CLIENTS_URL = '/api/state?resource=clients';
 const storage = {
   async get(key) {
     const [blobR, clientsR] = await Promise.allSettled([
@@ -71,7 +71,7 @@ const storage = {
     if (!r.ok) throw new Error('Error al guardar cliente');
   },
   async deleteClient(id) {
-    const r = await fetch(`${CLIENTS_URL}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    const r = await fetch(`/api/state?resource=clients&id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!r.ok) throw new Error('Error al eliminar cliente');
   },
 };

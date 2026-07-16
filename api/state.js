@@ -1,18 +1,3 @@
-/**
- * api/state.js — Persistencia del estado de la app en Supabase.
- * GET    → devuelve { value: JSON string } del estado guardado
- * POST   → body { value: JSON string } — guarda/actualiza el estado
- * DELETE → borra el estado (reset)
- *
- * Usa la tabla app_state (key text PK, value text, updated_at timestamptz)
- * Ejecutar en Supabase SQL Editor:
- *   create table if not exists app_state (
- *     key text primary key,
- *     value text not null,
- *     updated_at timestamptz default now()
- *   );
- */
-
 const STATE_KEY = 'promotia:DB'
 
 export default async function handler(req, res) {
@@ -33,7 +18,62 @@ export default async function handler(req, res) {
     'apikey': SERVICE_KEY,
   }
 
-  // GET — leer estado
+  const resource = req.query.resource // 'clients' | undefined
+
+  // ── CLIENTS resource ────────────────────────────────────────────────────────
+  if (resource === 'clients') {
+    if (req.method === 'GET') {
+      try {
+        const r = await fetch(
+          `${SUPABASE_URL}/rest/v1/promotia_clients?select=id,data,created_at&order=created_at.asc`,
+          { headers }
+        )
+        if (!r.ok) return res.status(500).json({ error: 'Error leyendo clientes' })
+        const rows = await r.json()
+        const clients = (rows || []).map(row => ({ ...row.data, id: row.id, _createdAt: row.created_at }))
+        return res.status(200).json({ clients })
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
+    if (req.method === 'POST') {
+      try {
+        const { client } = req.body || {}
+        if (!client || !client.id) return res.status(400).json({ error: 'client.id requerido' })
+        const r = await fetch(`${SUPABASE_URL}/rest/v1/promotia_clients`, {
+          method: 'POST',
+          headers: { ...headers, 'Prefer': 'resolution=merge-duplicates' },
+          body: JSON.stringify({ id: client.id, data: client, updated_at: new Date().toISOString() }),
+        })
+        if (!r.ok) {
+          const err = await r.text()
+          return res.status(500).json({ error: 'Error guardando cliente: ' + err })
+        }
+        return res.status(200).json({ ok: true })
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        const { id } = req.query
+        if (!id) return res.status(400).json({ error: 'id requerido' })
+        await fetch(
+          `${SUPABASE_URL}/rest/v1/promotia_clients?id=eq.${encodeURIComponent(id)}`,
+          { method: 'DELETE', headers }
+        )
+        return res.status(200).json({ ok: true })
+      } catch (e) {
+        return res.status(500).json({ error: e.message })
+      }
+    }
+
+    return res.status(405).end()
+  }
+
+  // ── STATE resource ──────────────────────────────────────────────────────────
   if (req.method === 'GET') {
     try {
       const r = await fetch(
@@ -49,7 +89,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // POST — guardar estado (upsert)
   if (req.method === 'POST') {
     try {
       const { value } = req.body || {}
@@ -69,7 +108,6 @@ export default async function handler(req, res) {
     }
   }
 
-  // DELETE — borrar estado
   if (req.method === 'DELETE') {
     try {
       await fetch(
