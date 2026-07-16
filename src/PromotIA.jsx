@@ -662,11 +662,15 @@ function AdminClientes({db,update,goClient}){
     fetch('/api/survey-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clientId:c.id,title:c.surveyTitle,primaryColor:c.surveyColor,logoUrl:c.surveyLogo,question:c.surveyQuestion})});
     setEdit(null); };
   const setProd=(i,v)=>setEdit(e=>{ const p=[...(e.productos||[])]; p[i]=v; return {...e,productos:p}; });
+  const [searchQ,setSearchQ]=useState('');
+  const clientesFiltrados=searchQ?db.clients.filter(c=>c.name.toLowerCase().includes(searchQ.toLowerCase())):db.clients;
   return <div>
     <Section title="Clientes" hint={`${db.clients.length} empresas · cuentas, contexto comercial y catálogo`} icon={Building2}
       right={<Btn icon={Plus} onClick={()=>setEdit({...blank})}>Nuevo cliente</Btn>}/>
+    <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Buscar cliente…"
+      style={{width:'100%',padding:'9px 14px',borderRadius:10,border:`1px solid ${C.line}`,fontSize:13.5,color:C.tx,background:C.surface,outline:'none',marginBottom:14,boxSizing:'border-box'}}/>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(330px,1fr))',gap:14}}>
-      {db.clients.map(c=>{ const s=clientStats(db,c.id); const b=npsBand(s.nps); const cr=churnRisk(db,c.id); const nextSend=nextSendDate(c.surveyFrequency); return (
+      {clientesFiltrados.map(c=>{ const s=clientStats(db,c.id); const b=npsBand(s.nps); const cr=churnRisk(db,c.id); const nextSend=nextSendDate(c.surveyFrequency); return (
         <Card key={c.id} className="fu" style={{padding:18, border:cr?`1.5px solid ${C.critico}44`:''}}>
           <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
             <div style={{display:'grid',placeItems:'center',width:42,height:42,borderRadius:12,background:C.grad,color:'#fff',fontWeight:700,fontFamily:DISP,fontSize:18}}>{c.name[0]}</div>
@@ -688,6 +692,8 @@ function AdminClientes({db,update,goClient}){
           <div style={{display:'flex',gap:8,marginTop:14}}>
             <Btn size="sm" variant="soft" icon={Eye} onClick={()=>goClient(c.id)} style={{flex:1}}>Ver portal</Btn>
             <CopyLinkBtn clientId={c.id}/>
+            <a href={`https://wa.me/?text=${encodeURIComponent(`Hola! Te comparto el link de la encuesta NPS de ${c.name}: ${window.location.origin}/encuesta/${c.id}`)}`} target="_blank" rel="noreferrer"
+              title="Compartir por WhatsApp" style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:8,border:`1px solid ${C.line}`,background:'#E7F7E7',color:'#128C7E',textDecoration:'none',fontSize:14,flexShrink:0}}>💬</a>
             {c.stripeCustomerId&&<StripePortalBtn customerId={c.stripeCustomerId}/>}
             <IconBtn icon={QrCode} title="Ver QR" onClick={()=>setQr(c)}/>
           </div>
