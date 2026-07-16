@@ -1775,22 +1775,18 @@ function AdminApp({db,update,onLogout}){
 
   const nav=[
     {key:'panel',label:'Panel ejecutivo',icon:Home},
-    {key:'clientes',label:'Clientes',icon:Building2},
     {key:'detractores',label:'Detractores',icon:Bell,badge:newDetCount},
-    {key:'usuarios',label:'Usuarios y accesos',icon:ShieldCheck},
     {key:'uso',label:'Uso',icon:Activity},
     {key:'benchmark',label:'Benchmark',icon:BarChart2},
     {key:'cross',label:'Cross-sell IA',icon:Sparkles},
   ];
   return <><ChangePasswordModal open={chgPwd} onClose={()=>setChgPwd(false)}/>
   <Shell nav={nav} active={seg} setActive={handleSetView} accentName="ADMINISTRACIÓN" brandSub="PromotIA · Delenio People"
-    topRight={<><Tag tone="brand"><ShieldCheck size={12} style={{marginRight:4,verticalAlign:'-2px'}}/>Admin</Tag><Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn><Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn></>}>
+    topRight={<><a href="https://hub.talenio.tech" target="_blank" rel="noreferrer" style={{padding:'5px 12px',borderRadius:7,background:'#73017B',color:'#fff',fontSize:12,fontWeight:700,textDecoration:'none'}}>Gestionar clientes y usuarios →</a><Tag tone="brand"><ShieldCheck size={12} style={{marginRight:4,verticalAlign:'-2px'}}/>Admin</Tag><Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn><Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn></>}>
     <Routes>
       <Route index element={<Navigate to="/admin/panel" replace/>}/>
       <Route path="panel" element={<AdminPanel db={db} newDetCount={newDetCount} goClient={goClient}/>}/>
-      <Route path="clientes" element={<AdminClientes db={db} update={update} goClient={goClient}/>}/>
       <Route path="detractores" element={<AdminDetractores db={db} update={update}/>}/>
-      <Route path="usuarios" element={<AdminUsuarios db={db} update={update}/>}/>
       <Route path="uso" element={<AdminUso db={db}/>}/>
       <Route path="benchmark" element={<AdminBenchmark db={db}/>}/>
       <Route path="cross" element={<AdminCrossSell db={db}/>}/>
