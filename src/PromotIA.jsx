@@ -1050,8 +1050,35 @@ function ClientResumen({db,clientId}){
   const sent=months.reduce((a,mo)=>a+(mo.sent||mo.responses.length),0);
   const rr = sent? r1(resp.length/sent*100):null;
 
-  if(!yResp.length) return <Empty icon={Inbox} title="Sin NPS para este año" sub="Cuando se carguen respuestas vas a ver acá el tablero de NPS del año en curso."/>;
+  const [surveyLinkCopied,setSurveyLinkCopied]=useState(false);
+  const surveyUrl=`${window.location.origin}/encuesta/${clientId}`;
+  function copySurveyUrl(){ navigator.clipboard.writeText(surveyUrl).catch(()=>{}); setSurveyLinkCopied(true); setTimeout(()=>setSurveyLinkCopied(false),2500); }
+
+  if(!yResp.length) return (<div>
+    {/* Card encuesta cuando no hay datos todavía */}
+    <div style={{background:C.lila4,border:`1.5px solid ${C.lila3}`,borderRadius:14,padding:'16px 18px',marginBottom:18,display:'flex',flexDirection:'column',gap:10}}>
+      <div style={{display:'flex',alignItems:'center',gap:8}}><FileSpreadsheet size={16} color={C.primary}/><span style={{fontSize:12,fontWeight:700,color:C.primary,letterSpacing:.4,textTransform:'uppercase'}}>Link de encuesta NPS</span></div>
+      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <div style={{flex:1,fontSize:12,fontFamily:'monospace',color:C.tx2,background:'#fff',border:`1px solid ${C.line}`,borderRadius:8,padding:'8px 12px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{surveyUrl}</div>
+        <Btn size="sm" variant={surveyLinkCopied?'soft':'primary'} icon={surveyLinkCopied?Check:Copy} onClick={copySurveyUrl}>{surveyLinkCopied?'¡Copiado!':'Copiar link'}</Btn>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`Hola! 👋 Te comparto el link de la encuesta NPS de ${c?.name||''}:\n${surveyUrl}`)}`} target="_blank" rel="noreferrer"
+          style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:34,height:34,borderRadius:9,background:'#128C7E',color:'#fff',textDecoration:'none',fontSize:16,flexShrink:0}} title="Compartir por WhatsApp">💬</a>
+      </div>
+      <div style={{fontSize:12,color:C.tx3}}>Compartí este link con tus clientes para que respondan la encuesta NPS.</div>
+    </div>
+    <Empty icon={Inbox} title="Sin NPS para este año" sub="Cuando se carguen respuestas vas a ver acá el tablero de NPS del año en curso."/>
+  </div>);
   return <div>
+    {/* Card encuesta prominente */}
+    <div style={{background:C.lila4,border:`1.5px solid ${C.lila3}`,borderRadius:14,padding:'14px 18px',marginBottom:18,display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+      <div style={{display:'flex',alignItems:'center',gap:7,flexShrink:0}}><FileSpreadsheet size={15} color={C.primary}/><span style={{fontSize:11.5,fontWeight:700,color:C.primary,letterSpacing:.4,textTransform:'uppercase'}}>Link de encuesta NPS</span></div>
+      <div style={{flex:1,minWidth:180,fontSize:12,fontFamily:'monospace',color:C.tx2,background:'#fff',border:`1px solid ${C.line}`,borderRadius:8,padding:'7px 11px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{surveyUrl}</div>
+      <div style={{display:'flex',gap:7,flexShrink:0}}>
+        <Btn size="sm" variant={surveyLinkCopied?'soft':'primary'} icon={surveyLinkCopied?Check:Copy} onClick={copySurveyUrl}>{surveyLinkCopied?'¡Copiado!':'Copiar'}</Btn>
+        <a href={`https://wa.me/?text=${encodeURIComponent(`Hola! 👋 Te comparto el link de la encuesta NPS de ${c?.name||''}:\n${surveyUrl}`)}`} target="_blank" rel="noreferrer"
+          style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:32,height:32,borderRadius:8,background:'#128C7E',color:'#fff',textDecoration:'none',fontSize:15,flexShrink:0}} title="Compartir por WhatsApp">💬</a>
+      </div>
+    </div>
     {c?.npsTarget&&m&&<NpsTargetBar current={m.nps} target={Number(c.npsTarget)} label={c.npsTargetLabel}/>}
     <Section title={`NPS ${year}`} hint="Tablero del año en curso · metodología NPS estándar" icon={LayoutDashboard}
       right={<div style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
