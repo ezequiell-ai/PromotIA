@@ -319,9 +319,10 @@ function GlobalStyle(){
     }
   },[]);
   return <style>{`
-    .promotia *{box-sizing:border-box}
+    *{box-sizing:border-box}
+    body,html{font-family:${BODY};-webkit-font-smoothing:antialiased}
     .promotia{font-family:${BODY};color:${C.tx};-webkit-font-smoothing:antialiased}
-    .promotia h1,.promotia h2,.promotia h3,.promotia .disp{font-family:${DISP};letter-spacing:-.02em}
+    .promotia h1,.promotia h2,.promotia h3,.promotia .disp,h1,h2,h3{font-family:${DISP};letter-spacing:-.02em}
     .promotia ::-webkit-scrollbar{width:10px;height:10px}
     .promotia ::-webkit-scrollbar-thumb{background:${C.line};border-radius:20px;border:3px solid #fff}
     .promotia ::-webkit-scrollbar-thumb:hover{background:${C.tx3}}
