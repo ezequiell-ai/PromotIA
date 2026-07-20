@@ -1036,7 +1036,7 @@ function NpsTargetBar({current, target, label}){
 
 function ClientResumen({db,clientId}){
   const c=db.clients.find(x=>x.id===clientId);
-  const cd=db.data[clientId]; const years=clientYears(cd); const [year,setYear]=useState(years.slice(-1)[0]);
+  const cd=(db.data||{})[clientId]; const years=clientYears(cd); const [year,setYear]=useState(years.slice(-1)[0]);
   const [seg,setSeg]=useState(''); const [sec,setSec]=useState('');
   const yResp=yearResp(cd,year); const segs0=demoOptions(yResp,'Segmento'); const secs0=demoOptions(yResp,'Sector');
   const resp=filterResp(yResp,{'Segmento':seg,'Sector':sec});
@@ -1131,7 +1131,7 @@ function ClientResumen({db,clientId}){
 
 /* ============================================================ CLIENT: HISTÓRICO ============================================================ */
 function ClientHistorico({db,clientId}){
-  const cd=db.data[clientId]; const years=clientYears(cd);
+  const cd=(db.data||{})[clientId]; const years=clientYears(cd);
   const allMonths=(cd?.months||[]).slice().sort((a,b)=>a.month<b.month?-1:1);
   const series=allMonths.map(mo=>{ const m=npsOf(mo.responses); return {name:mLabel(mo.month), NPS:m?m.nps:null, Promotores:m?m.proP:null, Detractores:m?m.detP:null}; });
   const yearSummary=years.map(y=>{ const r=yearResp(cd,y); const m=npsOf(r); return {year:y, nps:m?m.nps:null, proP:m?m.proP:0, detP:m?m.detP:0, n:r.length}; });
@@ -1179,7 +1179,7 @@ function Stat({year,ys}){ const b=npsBand(ys.nps); return <Card style={{padding:
 
 /* ============================================================ CLIENT: VOZ DEL CLIENTE (IA) ============================================================ */
 function ClientVoces({db,clientId,update}){
-  const cd=db.data[clientId]; const c=db.clients.find(x=>x.id===clientId);
+  const cd=(db.data||{})[clientId]; const c=db.clients.find(x=>x.id===clientId);
   const years=clientYears(cd); const [year,setYear]=useState(years.slice(-1)[0]);
   const resp=yearResp(cd,year); const m=npsOf(resp);
   const cached=db.voices?.[clientId]?.[year]||null;
@@ -1299,7 +1299,7 @@ function ClientContexto({db,clientId,update}){
 
 /* ============================================================ CLIENT: PLAN DE ACCIÓN (IA) ============================================================ */
 function ClientPlan({db,clientId,update}){
-  const cd=db.data[clientId]; const c=db.clients.find(x=>x.id===clientId);
+  const cd=(db.data||{})[clientId]; const c=db.clients.find(x=>x.id===clientId);
   const years=clientYears(cd); const [year,setYear]=useState(years.slice(-1)[0]);
   const resp=yearResp(cd,year); const m=npsOf(resp); const segs=bySegment(resp,'Segmento');
   const plan=db.plans?.[clientId]?.[year]||null;
@@ -1591,7 +1591,7 @@ function AdminDetractores({db,update}){
 
 /* ============================================================ CLIENT: COMPARATIVA DE PERÍODOS ============================================================ */
 function ClientComparativa({db,clientId}){
-  const cd=db.data[clientId];
+  const cd=(db.data||{})[clientId];
   const allMonths=(cd?.months||[]).slice().sort((a,b)=>a.month<b.month?-1:1);
   const years=[...new Set(allMonths.map(m=>m.month.split('-')[0]))];
 
@@ -1722,7 +1722,7 @@ function AdminBenchmark({db}){
 function ClientChat({db,clientId}){
   const [msgs,setMsgs]=useState([{role:'assistant',text:'¡Hola! Soy tu asistente NPS. Puedo ayudarte a entender tus datos, identificar tendencias y sugerir acciones. ¿En qué te puedo ayudar?'}]);
   const [input,setInput]=useState(''); const [loading,setLoading]=useState(false); const endRef=useRef(null);
-  const c=db.clients.find(x=>x.id===clientId); const cd=db.data[clientId];
+  const c=db.clients.find(x=>x.id===clientId); const cd=(db.data||{})[clientId];
   const allResp=(cd?.months||[]).flatMap(m=>m.responses); const m=npsOf(allResp); const segs=bySegment(allResp,'Segmento');
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'});},[msgs]);
   const ctxStr=`Sos un asistente NPS B2B para ${c?.name||'la empresa'}. Respondé de forma concisa y accionable en español.\n\nDATOS:\n${ctxText(c)}\n${m?diagText(m,segs):'Sin datos de NPS todavía.'}\nMeses con datos: ${cd?.months?.length||0}.\nComentarios recientes: ${comments(allResp,null).slice(0,5).map(x=>`"${x.txt}"(${x.e}/10)`).join(' | ')||'ninguno'}.`;
@@ -1751,7 +1751,7 @@ function ClientChat({db,clientId}){
 /* ============================================================ CLIENT: INFORME EJECUTIVO ============================================================ */
 function ClientInforme({db,clientId}){
   const [informe,setInforme]=useState(''); const [loading,setLoading]=useState(false); const [err,setErr]=useState(false);
-  const c=db.clients.find(x=>x.id===clientId); const cd=db.data[clientId];
+  const c=db.clients.find(x=>x.id===clientId); const cd=(db.data||{})[clientId];
   const allResp=(cd?.months||[]).flatMap(m=>m.responses); const m=npsOf(allResp); const segs=bySegment(allResp,'Segmento');
   const months=(cd?.months||[]).slice().sort((a,b)=>a.month<b.month?-1:1);
   const trend=months.map(mo=>{const x=npsOf(mo.responses);return x?`${mLabel(mo.month)}: NPS ${x.nps>0?'+':''}${x.nps}(n=${x.n})`:null;}).filter(Boolean);
@@ -1872,7 +1872,7 @@ function ClientAppShell({db,update,onLogout}){
   return <><ChangePasswordModal open={chgPwd} onClose={()=>setChgPwd(false)}/>
   <Shell nav={nav} active={seg} setActive={(v)=>navigate(`/cliente/${clientId}/${v}`,{state:{fromAdmin}})} accentName={(c?.name||'CLIENTE').toUpperCase()} brandSub={c?.name}
     topRight={<>
-      <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13,color:C.tx2}}><span style={{display:'grid',placeItems:'center',width:28,height:28,borderRadius:8,background:C.grad,color:'#fff',fontWeight:700,fontFamily:DISP,fontSize:13}}>{c?.name[0]}</span>{c?.name}</span>
+      <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13,color:C.tx2}}><span style={{display:'grid',placeItems:'center',width:28,height:28,borderRadius:8,background:C.grad,color:'#fff',fontWeight:700,fontFamily:DISP,fontSize:13}}>{(c?.name||'?')[0]}</span>{c?.name}</span>
       {!fromAdmin&&<Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn>}
       {fromAdmin?<Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={()=>navigate('/admin')}>Volver a admin</Btn>:<Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn>}
     </>}>
