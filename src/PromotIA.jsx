@@ -93,8 +93,8 @@ const C = {
   promotor:'#1E9E6A', pasivo:'#C9BACF', detractor:'#E5564B',
   promotorBg:'#E0F3EA', detractorBg:'#FCE7E5',
 };
-const DISP = "'Quicksand','Trebuchet MS',sans-serif";
-const BODY = "'Archivo','Segoe UI',system-ui,-apple-system,sans-serif";
+const DISP = "'Inter',system-ui,-apple-system,sans-serif";
+const BODY = "'Inter',system-ui,-apple-system,sans-serif";
 
 /* ============================ PURE HELPERS ============================ */
 const norm = s => String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
@@ -314,7 +314,7 @@ function GlobalStyle(){
     const id='promotia-fonts';
     if(!document.getElementById(id)){
       const l=document.createElement('link'); l.id=id; l.rel='stylesheet';
-      l.href='https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Archivo:wght@400;500;600;700&display=swap';
+      l.href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
       document.head.appendChild(l);
     }
   },[]);
