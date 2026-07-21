@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, ReferenceLine } from 'recharts';
-import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Target, Upload, ChevronRight, ChevronDown, Users, Activity, Gauge, Download, Sparkles, Building2, Plus, Trash2, Pencil, Check, X, Copy, Eye, ArrowLeft, CalendarDays, RotateCcw, LogOut, LayoutDashboard, FileSpreadsheet, MessageSquare, ClipboardList, BarChart3, ShieldCheck, Wand2, Heart, Star, Inbox, Briefcase, ThumbsUp, ThumbsDown, Minus, Package, Quote, Layers, QrCode, Printer, Settings, Bot, FileText, Send, BarChart2, Clock, Zap, Bell, Flag, GitCompareArrows, Home, UserCheck, XCircle, PhoneCall, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb, Target, Upload, ChevronRight, ChevronDown, Users, Activity, Gauge, Download, Sparkles, Building2, Plus, Trash2, Pencil, Check, X, Copy, Eye, ArrowLeft, CalendarDays, RotateCcw, LogOut, LayoutDashboard, FileSpreadsheet, MessageSquare, ClipboardList, BarChart3, ShieldCheck, Wand2, Heart, Star, Inbox, Briefcase, ThumbsUp, ThumbsDown, Minus, Package, Quote, Layers, QrCode, Printer, Settings, Bot, FileText, Send, BarChart2, Clock, Zap, Bell, Flag, GitCompareArrows, Home, UserCheck, XCircle, PhoneCall, RefreshCw, Lock } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from './lib/supabase';
 
@@ -1796,11 +1796,12 @@ Incluí: 1. Síntesis ejecutiva. 2. Puntos fuertes. 3. Alertas y oportunidades. 
 }
 
 /* ============================================================ NAV + SHELL ============================================================ */
-function NavItem({icon:Icon,label,active,onClick,badge}){
+function NavItem({icon:Icon,label,active,onClick,badge,locked}){
   return <button onClick={onClick} style={{display:'flex',alignItems:'center',gap:11,width:'100%',padding:'11px 13px',borderRadius:11,border:'none',cursor:'pointer',marginBottom:3,textAlign:'left',
-    background:active?C.lila3:'transparent',color:active?C.primary:C.tx2,fontWeight:active?700:600,fontSize:13.5,transition:'all .12s'}}>
-    <Icon size={18} style={{color:active?C.magenta:C.tx3}}/><span style={{flex:1}}>{label}</span>
-    {badge>0&&<span style={{display:'inline-flex',placeItems:'center',background:C.critico,color:'#fff',borderRadius:20,fontSize:10,fontWeight:700,minWidth:18,height:18,justifyContent:'center',padding:'0 5px'}}>{badge}</span>}
+    background:active?C.lila3:'transparent',color:active?C.primary:locked?C.tx3:C.tx2,fontWeight:active?700:600,fontSize:13.5,transition:'all .12s',opacity:locked?.7:1}}>
+    <Icon size={18} style={{color:active?C.magenta:locked?C.tx3:C.tx3}}/><span style={{flex:1}}>{label}</span>
+    {locked&&<Lock size={12} style={{color:C.tx3,flexShrink:0}}/>}
+    {!locked&&badge>0&&<span style={{display:'inline-flex',placeItems:'center',background:C.critico,color:'#fff',borderRadius:20,fontSize:10,fontWeight:700,minWidth:18,height:18,justifyContent:'center',padding:'0 5px'}}>{badge}</span>}
   </button>;
 }
 function Shell({nav,active,setActive,topRight,brandSub,children,accentName}){
@@ -1808,7 +1809,7 @@ function Shell({nav,active,setActive,topRight,brandSub,children,accentName}){
     <aside style={{width:240,background:'#fff',borderRight:`1px solid ${C.line}`,padding:'20px 16px',display:'flex',flexDirection:'column',position:'sticky',top:0,height:'100vh'}}>
       <div style={{padding:'2px 6px 18px'}}><Wordmark size={19}/></div>
       <div style={{fontSize:10.5,fontWeight:700,color:C.tx3,letterSpacing:.5,padding:'4px 10px 8px'}}>{accentName}</div>
-      <nav style={{flex:1}}>{nav.map(n=> <NavItem key={n.key} icon={n.icon} label={n.label} active={active===n.key} onClick={()=>setActive(n.key)}/>)}</nav>
+      <nav style={{flex:1}}>{nav.map(n=> <NavItem key={n.key} icon={n.icon} label={n.label} active={active===n.key} onClick={()=>setActive(n.key)} badge={n.badge} locked={n.locked}/>)}</nav>
       <div style={{fontSize:11,color:C.tx3,padding:'12px 10px 2px',borderTop:`1px solid ${C.line2}`}}>{brandSub}</div>
     </aside>
     <main style={{flex:1,minWidth:0}}>
@@ -1853,26 +1854,59 @@ function AdminApp({db,update,onLogout}){
   </Shell></>;
 }
 
+const IA_FEATURES_PROMOTIA = new Set(['chat','informe','plan','benchmark','cross']);
+
+function PlanLock({ feature }) {
+  return (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',minHeight:320,gap:16,padding:40,textAlign:'center'}}>
+      <div style={{width:56,height:56,borderRadius:16,background:'#F7F0FA',display:'grid',placeItems:'center'}}>
+        <Lock size={26} color={C.primary}/>
+      </div>
+      <div style={{fontWeight:800,fontSize:18,color:C.tx}}>Funcionalidad +IA</div>
+      <div style={{fontSize:14,color:C.tx2,maxWidth:340,lineHeight:1.6}}>
+        Esta funcionalidad está disponible en el plan <strong>+IA</strong>.<br/>
+        Contactá a Delenio People para actualizar tu plan.
+      </div>
+      <a href="mailto:hola@talenio.tech" style={{padding:'10px 22px',borderRadius:9,background:C.primary,color:'#fff',fontWeight:700,fontSize:13,textDecoration:'none'}}>
+        Consultar upgrade →
+      </a>
+    </div>
+  );
+}
+
 function ClientAppShell({db,update,onLogout}){
   const {clientId}=useParams(); const navigate=useNavigate(); const location=useLocation();
   const [chgPwd,setChgPwd]=useState(false);
+  const [plan,setPlan]=useState(null);
   const fromAdmin=location.state?.fromAdmin||false;
   const c=db.clients.find(x=>x.id===clientId);
   const seg=location.pathname.split('/')[3]||'resumen';
+
+  useEffect(()=>{
+    if(!clientId) return;
+    supabase.from('subscriptions').select('plan,status').eq('company_id',clientId).eq('product','promotia').maybeSingle()
+      .then(({data})=>{ setPlan(data?.status==='active'||data?.status==='trialing' ? (data.plan||'start') : 'start'); });
+  },[clientId]);
+
+  const isPlusIA = plan === 'plus_ia';
+  const canAccess = (key) => !IA_FEATURES_PROMOTIA.has(key) || isPlusIA;
+
   const nav=[
     {key:'resumen',label:'NPS del año',icon:LayoutDashboard},
     {key:'historico',label:'Dashboard histórico',icon:BarChart3},
     {key:'comparativa',label:'Comparativa',icon:GitCompareArrows},
     {key:'voces',label:'Voz del cliente',icon:Quote},
-    {key:'chat',label:'Chat con IA',icon:Bot},
-    {key:'informe',label:'Informe ejecutivo',icon:FileText},
+    {key:'chat',label:'Chat con IA',icon:Bot,locked:!isPlusIA&&plan!==null},
+    {key:'informe',label:'Informe ejecutivo',icon:FileText,locked:!isPlusIA&&plan!==null},
     {key:'contexto',label:'Mi empresa',icon:Package},
-    {key:'plan',label:'Plan de acción',icon:ClipboardList},
+    {key:'plan',label:'Plan de acción',icon:ClipboardList,locked:!isPlusIA&&plan!==null},
   ];
+
   return <><ChangePasswordModal open={chgPwd} onClose={()=>setChgPwd(false)}/>
   <Shell nav={nav} active={seg} setActive={(v)=>navigate(`/cliente/${clientId}/${v}`,{state:{fromAdmin}})} accentName={(c?.name||'CLIENTE').toUpperCase()} brandSub={c?.name}
     topRight={<>
       <span style={{display:'inline-flex',alignItems:'center',gap:7,fontSize:13,color:C.tx2}}><span style={{display:'grid',placeItems:'center',width:28,height:28,borderRadius:8,background:C.grad,color:'#fff',fontWeight:700,fontFamily:DISP,fontSize:13}}>{(c?.name||'?')[0]}</span>{c?.name}</span>
+      {plan&&<span style={{fontSize:10,fontWeight:800,letterSpacing:'.05em',padding:'3px 8px',borderRadius:5,background:isPlusIA?'#EFD9F1':'#F7F2FA',color:isPlusIA?C.primary:'#5E4E64'}}>{isPlusIA?'+IA':'START'}</span>}
       {!fromAdmin&&<Btn size="sm" variant="ghost" icon={Settings} onClick={()=>setChgPwd(true)}>Contraseña</Btn>}
       {fromAdmin?<Btn size="sm" variant="ghost" icon={ArrowLeft} onClick={()=>navigate('/admin')}>Volver a admin</Btn>:<Btn size="sm" variant="ghost" icon={LogOut} onClick={onLogout}>Salir</Btn>}
     </>}>
@@ -1882,10 +1916,10 @@ function ClientAppShell({db,update,onLogout}){
       <Route path="historico" element={<ClientHistorico db={db} clientId={clientId}/>}/>
       <Route path="comparativa" element={<ClientComparativa db={db} clientId={clientId}/>}/>
       <Route path="voces" element={<ClientVoces db={db} clientId={clientId} update={update}/>}/>
-      <Route path="chat" element={<ClientChat db={db} clientId={clientId}/>}/>
-      <Route path="informe" element={<ClientInforme db={db} clientId={clientId}/>}/>
+      <Route path="chat" element={canAccess('chat') ? <ClientChat db={db} clientId={clientId}/> : <PlanLock feature="chat"/>}/>
+      <Route path="informe" element={canAccess('informe') ? <ClientInforme db={db} clientId={clientId}/> : <PlanLock feature="informe"/>}/>
       <Route path="contexto" element={<ClientContexto db={db} clientId={clientId} update={update}/>}/>
-      <Route path="plan" element={<ClientPlan db={db} clientId={clientId} update={update}/>}/>
+      <Route path="plan" element={canAccess('plan') ? <ClientPlan db={db} clientId={clientId} update={update}/> : <PlanLock feature="plan"/>}/>
       <Route path="*" element={<Navigate to={`/cliente/${clientId}/resumen`} replace/>}/>
     </Routes>
   </Shell></>;
