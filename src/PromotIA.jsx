@@ -611,9 +611,8 @@ function useRealtimeSurvey(update, onNewDetractor){
 }
 
 const PLAN_META = {
-  start:  { name: 'Start',  color: '#5E4E64', bg: '#F7F2FA' },
-  growth: { name: 'Growth', color: '#73017B', bg: '#EFD9F1' },
-  scale:  { name: 'Scale',  color: '#0c01a4', bg: '#E8E7F8' },
+  start:   { name: 'Start', color: '#5E4E64', bg: '#F7F2FA' },
+  plus_ia: { name: '+IA',   color: '#73017B', bg: '#EFD9F1' },
 };
 const PLAN_STATUS_LABEL = { active: 'Activo', trialing: 'Trial', past_due: 'Pago pendiente', canceled: 'Cancelado', unpaid: 'Impago' };
 const PLAN_STATUS_COLOR = { active: C.exc, trialing: C.primary, past_due: '#E8A23D', canceled: C.critico, unpaid: C.critico };
