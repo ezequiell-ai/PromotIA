@@ -23,8 +23,27 @@ function scoreLabel(n) {
   return 'Promotor'
 }
 
+function SurveySkeleton({ color = DEFAULT_COLOR }) {
+  return (
+    <div style={{ minHeight: '100vh', background: '#F7F2FA', fontFamily: BODY, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '48px 20px' }}>
+      <style>{`@keyframes svShimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}.sv-sk{background:linear-gradient(90deg,#ece6ee 0%,#f7f3f8 50%,#ece6ee 100%);background-size:200% 100%;animation:svShimmer 1.4s ease-in-out infinite;border-radius:12px}`}</style>
+      <div className="sv-sk" style={{ width: 72, height: 72, borderRadius: '50%', marginBottom: 20 }}/>
+      <div className="sv-sk" style={{ width: 220, height: 16, marginBottom: 8 }}/>
+      <div className="sv-sk" style={{ width: 160, height: 12, marginBottom: 32 }}/>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', justifyContent: 'center' }}>
+        {Array.from({ length: 11 }, (_, i) => (
+          <div key={i} className="sv-sk" style={{ width: 44, height: 44, borderRadius: 12 }}/>
+        ))}
+      </div>
+      <div className="sv-sk" style={{ width: '100%', maxWidth: 480, height: 80, marginBottom: 20 }}/>
+      <div className="sv-sk" style={{ width: 140, height: 42, borderRadius: 12 }}/>
+    </div>
+  )
+}
+
 export default function SurveyPage({ clientId }) {
   const [config, setConfig] = useState({ question: DEFAULT_QUESTION, primaryColor: DEFAULT_COLOR, title: '', logoUrl: '' })
+  const [configLoaded, setConfigLoaded] = useState(false)
   const [score, setScore] = useState(null)
   const [comment, setComment] = useState('')
   const [name, setName] = useState('')
@@ -45,7 +64,10 @@ export default function SurveyPage({ clientId }) {
         })
       })
       .catch(() => {})
+      .finally(() => setConfigLoaded(true))
   }, [clientId])
+
+  if (!configLoaded) return <SurveySkeleton/>
 
   const primary = config.primaryColor
 
